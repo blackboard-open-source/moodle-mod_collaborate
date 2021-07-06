@@ -70,6 +70,7 @@ class api extends generated\SASDefaultAdapter implements api_session, api_attend
      * @param stdClass $config - custom config passed in on construct.
      */
     public function __construct(array $options = array(), $wsdl = null, stdClass $config = null) {
+        global $CFG;
 
         $this->setup($config);
 
@@ -92,6 +93,18 @@ class api extends generated\SASDefaultAdapter implements api_session, api_attend
             ini_set('soap.wsdl_cache_enabled', '0');
             ini_set('soap.wsdl_cache_ttl', '0');
             $options['trace'] = 1;
+        }
+
+        // Add moodle proxy soap options.
+        if (!empty($CFG->proxyhost)) {
+            $options['proxy_host'] = $CFG->proxyhost;
+            if (!empty($CFG->proxyport)) {
+                $options['proxy_port'] = $CFG->proxyport;
+            }
+            if (!empty($CFG->proxyuser) and !empty($CFG->proxypassword)) {
+                $options['proxy_login'] = $CFG->proxyuser;
+                $options['proxy_password'] = $CFG->proxypassword;
+            }
         }
 
         $serviceok = $this->test_service_reachable($options['location']);
@@ -161,6 +174,7 @@ class api extends generated\SASDefaultAdapter implements api_session, api_attend
      * @return bool
      */
     protected function test_service_reachable($serviceuri) {
+        global $CFG;
         $ch = curl_init();
         $this->logger->info('Testing service availability: '.$serviceuri);
         curl_setopt($ch, CURLOPT_URL, $serviceuri);
@@ -169,6 +183,29 @@ class api extends generated\SASDefaultAdapter implements api_session, api_attend
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+        // Add moodle proxy curlopts.
+        if (!empty($CFG->proxyhost)) {
+            if (empty($CFG->proxyport)) {
+                $proxyhost = $CFG->proxyhost;
+            } else {
+                $proxyhost = $CFG->proxyhost.':'.$CFG->proxyport;
+            }
+            if (!empty($CFG->proxyuser) and !empty($CFG->proxypassword)) {
+                $proxyauth = $CFG->proxyuser.':'.$CFG->proxypassword;
+                curl_setopt($ch, CURLOPT_PROXYAUTH, CURLAUTH_BASIC | CURLAUTH_NTLM);
+                curl_setopt($ch, CURLOPT_PROXYUSERPWD, $proxyauth);
+            }
+            if (!empty($CFG->proxytype)) {
+                if ($CFG->proxytype == 'SOCKS5') {
+                    $proxytype = CURLPROXY_SOCKS5;
+                } else {
+                    $proxytype = CURLPROXY_HTTP;
+                    curl_setopt($ch, CURLOPT_HTTPPROXYTUNNEL, false);
+                }
+                curl_setopt($ch, CURLOPT_PROXYTYPE, $proxytype);
+            }
+            curl_setopt($ch, CURLOPT_PROXY, $proxyhost);
+        }
         $body = curl_exec($ch);
         if (stripos($body, '<soap:Envelope') === false) {
             // Body does not contain expected text, service is bad.

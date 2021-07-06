@@ -306,6 +306,29 @@ class api {
         if (!empty($headers)) {
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         }
+        // Add moodle proxy curlopts.
+        if (!empty($CFG->proxyhost)) {
+            if (empty($CFG->proxyport)) {
+                $proxyhost = $CFG->proxyhost;
+            } else {
+                $proxyhost = $CFG->proxyhost.':'.$CFG->proxyport;
+            }
+            if (!empty($CFG->proxyuser) and !empty($CFG->proxypassword)) {
+                $proxyauth = $CFG->proxyuser.':'.$CFG->proxypassword;
+                curl_setopt($ch, CURLOPT_PROXYAUTH, CURLAUTH_BASIC | CURLAUTH_NTLM);
+                curl_setopt($ch, CURLOPT_PROXYUSERPWD, $proxyauth);
+            }
+            if (!empty($CFG->proxytype)) {
+                if ($CFG->proxytype == 'SOCKS5') {
+                    $proxytype = CURLPROXY_SOCKS5;
+                } else {
+                    $proxytype = CURLPROXY_HTTP;
+                    curl_setopt($ch, CURLOPT_HTTPPROXYTUNNEL, false);
+                }
+                curl_setopt($ch, CURLOPT_PROXYTYPE, $proxytype);
+            }
+            curl_setopt($ch, CURLOPT_PROXY, $proxyhost);
+        }
         $jsonstr = curl_exec($ch);
         $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $this->logger->info('response', ['httpcode' => $httpcode]);
