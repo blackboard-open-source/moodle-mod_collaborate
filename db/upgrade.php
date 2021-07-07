@@ -321,7 +321,7 @@ function xmldb_collaborate_upgrade($oldversion) {
         // Drop index so we can change field type for recordingid.
         $table = new xmldb_table('collaborate_recording_info');
         $idx = new xmldb_index('sessionlinkid-recordingid-action', XMLDB_INDEX_NOTUNIQUE,
-            ['sessionlinkid', 'recordingid', 'action'], 'collaborate');
+            ['sessionlinkid', 'recordingid', 'action'], ['collaborate']);
         // Launch drop key sessionid.
         $dbman->drop_index($table, $idx);
 
